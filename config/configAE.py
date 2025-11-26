@@ -70,7 +70,7 @@ class ConfigAE(object):
         self.loss_weights = {
             "loss_cmd_weight": 1.0,
             "loss_args_weight": 2.0,
-            "loss_topo_weight": 0.05
+            "loss_topo_weight": 1.0
         }
 
     def parse(self):
