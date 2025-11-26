@@ -18,7 +18,7 @@ class TrainerAE(BaseTrainer):
         self.scheduler = GradualWarmupScheduler(self.optimizer, 1.0, cfg.warmup_step)
 
     def set_loss_function(self):
-        self.loss_func = CADLoss(self.cfg).cuda()
+        self.loss_func = CADLoss(self.cfg, debug=True).cuda()
 
     def forward(self, data):
         commands = data['command'].cuda() # (N, S)
@@ -84,7 +84,7 @@ class TrainerAE(BaseTrainer):
             arc_pos = np.where(gt_commands == ARC_IDX)
             circle_pos = np.where(gt_commands == CIRCLE_IDX)
 
-            args_comp = (gt_args == out_args).astype(np.int)
+            args_comp = (gt_args == out_args).astype(int)
             all_ext_args_comp.append(args_comp[ext_pos][:, -N_ARGS_EXT:])
             all_line_args_comp.append(args_comp[line_pos][:, :2])
             all_arc_args_comp.append(args_comp[arc_pos][:, :4])

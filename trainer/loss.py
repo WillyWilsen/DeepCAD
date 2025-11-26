@@ -2,16 +2,18 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from model.model_utils import _get_padding_mask, _get_visibility_mask
+from model.topology_checker import topology_invalid
 from cadlib.macro import CMD_ARGS_MASK
 
 
 class CADLoss(nn.Module):
-    def __init__(self, cfg):
+    def __init__(self, cfg, debug=False):
         super().__init__()
 
         self.n_commands = cfg.n_commands
         self.args_dim = cfg.args_dim + 1
         self.weights = cfg.loss_weights
+        self.debug = debug
 
         self.register_buffer("cmd_args_mask", torch.tensor(CMD_ARGS_MASK))
 
@@ -32,5 +34,27 @@ class CADLoss(nn.Module):
         loss_cmd = self.weights["loss_cmd_weight"] * loss_cmd
         loss_args = self.weights["loss_args_weight"] * loss_args
 
-        res = {"loss_cmd": loss_cmd, "loss_args": loss_args}
+        # === Topology penalty (on predictions) ===
+        pred_commands = torch.argmax(torch.softmax(command_logits, dim=-1), dim=-1)
+        pred_args = torch.argmax(torch.softmax(args_logits, dim=-1), dim=-1) - 1
+
+        invalid_mask = topology_invalid(pred_commands, pred_args)   # (N,)
+        invalid_loss = self.weights["loss_topo_weight"] * invalid_mask.float().mean()
+
+        # === DEBUG PRINT ===
+        if self.debug:
+            num_invalid = invalid_mask.sum().item()
+            batch_size = invalid_mask.shape[0]
+            print(f"[DEBUG] Invalid sequences: {num_invalid}/{batch_size}")
+            print(f"[DEBUG] loss_cmd={loss_cmd.item():.4f}, loss_args={loss_args.item():.4f}, loss_topo={invalid_loss.item():.4f}")
+
+            # Print contoh sequence pertama yang invalid
+            if num_invalid > 0:
+                idx = invalid_mask.nonzero()[0].item()
+                print("---- INVALID SAMPLE ----")
+                print("Pred Commands:", pred_commands[idx].tolist())
+                print("Pred Args:", pred_args[idx].tolist())
+                print("------------------------")
+
+        res = {"loss_cmd": loss_cmd, "loss_args": loss_args, "loss_topo": invalid_loss}
         return res
