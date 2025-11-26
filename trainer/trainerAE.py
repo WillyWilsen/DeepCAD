@@ -18,7 +18,7 @@ class TrainerAE(BaseTrainer):
         self.scheduler = GradualWarmupScheduler(self.optimizer, 1.0, cfg.warmup_step)
 
     def set_loss_function(self):
-        self.loss_func = CADLoss(self.cfg, debug=True).cuda()
+        self.loss_func = CADLoss(self.cfg).cuda()
 
     def forward(self, data):
         commands = data['command'].cuda() # (N, S)
